@@ -43,3 +43,17 @@ W1, b1, W2, b2, W3, b3 = enhanced_gradient_descent(
 
 # Make predictions
 predictions = get_predictions(forward_prop(W1, b1, W2, b2, W3, b3, X_test)[-1])
+
+## 📚 Theoretical Basis
+### Based on fundamental deep learning principles:
+
+- Chain rule for gradient computation
+- Back-propagation algorithm
+- Non-linear activation functons (ReLU)
+- Multi-class classification (Softmax)
+- Regularization techniques
+- Learning rate scheduling
+
+**This implementation demonstrates core neural network concepts without relying on high-level frameworks like TensorFlow or PyTorch.**
+
+This documentation covers the mathematical foundation, implementation details, and performance results while referencing the concepts from this attached PDF
