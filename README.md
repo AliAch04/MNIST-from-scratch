@@ -1,7 +1,5 @@
 # Neural Network for MNIST Digit Recognition
 
-[![PDF Documentation]](./NW1.pdf) *Design Document*
-
 A from-scratch implementation of a 3-layer neural network achieving **74.9% accuracy** on MNIST test data.
 
 ## Theoretical Foundation
