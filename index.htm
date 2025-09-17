@@ -1,144 +1,67 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MNIST Digit Recognizer</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        
-        h1 {
-            text-align: center;
-            color: #333;
-            margin-bottom: 30px;
-        }
-        
-        .drawing-area {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 20px;
-        }
-        
-        #canvas {
-            border: 2px solid #ddd;
-            border-radius: 5px;
-            cursor: crosshair;
-            background-color: black;
-        }
-        
-        .controls {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        
-        button {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-            transition: background-color 0.3s;
-        }
-        
-        #predictBtn {
-            background-color: #4CAF50;
-            color: white;
-        }
-        
-        #predictBtn:hover {
-            background-color: #45a049;
-        }
-        
-        #clearBtn {
-            background-color: #f44336;
-            color: white;
-        }
-        
-        #clearBtn:hover {
-            background-color: #da190b;
-        }
-        
-        .result {
-            text-align: center;
-            margin-top: 20px;
-            padding: 20px;
-            border-radius: 5px;
-            background-color: #e8f5e8;
-        }
-        
-        .prediction {
-            font-size: 48px;
-            font-weight: bold;
-            color: #2e7d32;
-        }
-        
-        .confidence {
-            font-size: 16px;
-            color: #666;
-            margin-top: 10px;
-        }
-        
-        .probabilities {
-            display: flex;
-            justify-content: center;
-            gap: 5px;
-            margin-top: 15px;
-            flex-wrap: wrap;
-        }
-        
-        .prob-bar {
-            width: 20px;
-            background-color: #4CAF50;
-            border-radius: 2px;
-            transition: height 0.3s;
-        }
-        
-        .prob-label {
-            font-size: 10px;
-            text-align: center;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>28x28 Drawing Grid</title>
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: #f2f2f2;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(28, 20px); /* each square = 20px */
+      grid-template-rows: repeat(28, 20px);
+      border: 2px solid black;
+    }
+    .cell {
+      width: 20px;
+      height: 20px;
+      background: white;
+      border: 1px solid #ddd; /* grid lines */
+      box-sizing: border-box;
+    }
+    .cell.active {
+      background: black;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🎨 MNIST Digit Recognizer</h1>
-        
-        <div class="drawing-area">
-            <canvas id="canvas" width="280" height="280"></canvas>
-            
-            <div class="controls">
-                <button id="clearBtn">Clear Canvas</button>
-                <button id="predictBtn">Predict Digit</button>
-            </div>
-        </div>
-        
-        <div class="result" id="result" style="display: none;">
-            <h3>Prediction:</h3>
-            <div class="prediction" id="prediction">-</div>
-            <div class="confidence" id="confidence">Confidence: -</div>
-            
-            <div class="probabilities" id="probabilities">
-                <!-- Probability bars will be inserted here -->
-            </div>
-        </div>
-    </div>
+  <div class="grid" id="grid"></div>
 
-    <script src="https://cdn.jsdelivr.net/npm/numpy@0.0.1/browser.js"></script>
-    <script src="script.js"></script>
+  <script>
+    const grid = document.getElementById("grid");
+    let isDrawing = false;
+
+    // Create 28x28 = 784 cells
+    for (let i = 0; i < 28 * 28; i++) {
+      const cell = document.createElement("div");
+      cell.classList.add("cell");
+
+      // Click to toggle
+      cell.addEventListener("mousedown", () => {
+        isDrawing = true;
+        cell.classList.add("active");
+      });
+
+      // Hover while drawing
+      cell.addEventListener("mouseover", () => {
+        if (isDrawing) {
+          cell.classList.add("active");
+        }
+      });
+
+      grid.appendChild(cell);
+    }
+
+    // Stop drawing when mouse is released anywhere
+    document.addEventListener("mouseup", () => {
+      isDrawing = false;
+    });
+  </script>
 </body>
 </html>
