@@ -1,20 +1,115 @@
-// script.js - Fixed complete version
-console.log('✅ script.js loaded!');
+// script.js - COMPLETE numpy-free version
+console.log('✅ script.js loaded without numpy!');
 
 // Global variables for model weights
 let W1, b1, W2, b2, W3, b3;
 let modelInitialized = false;
 
-// Activation functions
-function relu(X) {
-    return np.maximum(0, X);
+// ==================== PURE JAVASCRIPT MATH FUNCTIONS ====================
+
+// Matrix multiplication: A * B
+function matMultiply(A, B) {
+    const aRows = A.length, aCols = A[0].length;
+    const bRows = B.length, bCols = B[0].length;
+    
+    if (aCols !== bRows) {
+        throw new Error(`Matrix multiplication error: ${aCols} != ${bRows}`);
+    }
+    
+    const result = new Array(aRows);
+    for (let i = 0; i < aRows; i++) {
+        result[i] = new Array(bCols).fill(0);
+        for (let j = 0; j < bCols; j++) {
+            for (let k = 0; k < aCols; k++) {
+                result[i][j] += A[i][k] * B[k][j];
+            }
+        }
+    }
+    return result;
 }
 
-function softmax(Z) {
-    const Z_shifted = Z.subtract(np.max(Z, 0, true));
-    const exp_Z = np.exp(Z_shifted);
-    return exp_Z.divide(np.sum(exp_Z, 0, true));
+// Matrix addition: A + B
+function matAdd(A, B) {
+    const rows = A.length, cols = A[0].length;
+    const result = new Array(rows);
+    
+    for (let i = 0; i < rows; i++) {
+        result[i] = new Array(cols);
+        for (let j = 0; j < cols; j++) {
+            result[i][j] = A[i][j] + B[i][j];
+        }
+    }
+    return result;
 }
+
+// ReLU activation function
+function relu(X) {
+    const rows = X.length, cols = X[0].length;
+    const result = new Array(rows);
+    
+    for (let i = 0; i < rows; i++) {
+        result[i] = new Array(cols);
+        for (let j = 0; j < cols; j++) {
+            result[i][j] = Math.max(0, X[i][j]);
+        }
+    }
+    return result;
+}
+
+// Softmax activation function
+function softmax(X) {
+    const rows = X.length, cols = X[0].length;
+    const result = new Array(rows);
+    
+    for (let j = 0; j < cols; j++) {
+        // Find max value in this column for numerical stability
+        let maxVal = -Infinity;
+        for (let i = 0; i < rows; i++) {
+            if (X[i][j] > maxVal) maxVal = X[i][j];
+        }
+        
+        // Compute exponentials
+        let sum = 0;
+        const expValues = new Array(rows);
+        for (let i = 0; i < rows; i++) {
+            expValues[i] = Math.exp(X[i][j] - maxVal);
+            sum += expValues[i];
+        }
+        
+        // Normalize
+        for (let i = 0; i < rows; i++) {
+            if (!result[i]) result[i] = new Array(cols);
+            result[i][j] = expValues[i] / sum;
+        }
+    }
+    return result;
+}
+
+// Get maximum value and index from matrix
+function argmax(matrix) {
+    const rows = matrix.length, cols = matrix[0].length;
+    const predictions = new Array(cols);
+    const confidences = new Array(cols);
+    
+    for (let j = 0; j < cols; j++) {
+        let maxVal = -Infinity;
+        let maxIndex = -1;
+        
+        for (let i = 0; i < rows; i++) {
+            if (matrix[i][j] > maxVal) {
+                maxVal = matrix[i][j];
+                maxIndex = i;
+            }
+        }
+        
+        predictions[j] = maxIndex;
+        confidences[j] = maxVal;
+    }
+    
+    return { predictions, confidences };
+}
+
+// ==================== NEURAL NETWORK FUNCTIONS ====================
 
 // Get pixel data from grid
 function getGridData() {
@@ -31,19 +126,20 @@ function getGridData() {
     return pixelData;
 }
 
-// Preprocess grid data
+// Preprocess grid data for neural network
 function preprocessGridData() {
-    try {
-        const pixelData = getGridData();
-        const np = window.numpy;
-        const imageArray = np.array(pixelData).reshape(28, 28);
-        const flattened = imageArray.flatten();
-        return flattened.reshape(784, 1);
-        
-    } catch (error) {
-        console.error('Preprocessing error:', error);
-        throw error;
+    const pixelData = getGridData();
+    // Reshape to 28x28 and then to 784x1
+    const image2D = [];
+    for (let i = 0; i < 28; i++) {
+        image2D.push(pixelData.slice(i * 28, (i + 1) * 28));
     }
+    // Transpose to 784x1 (each pixel as a separate row)
+    const result = [];
+    for (let i = 0; i < 784; i++) {
+        result.push([pixelData[i]]);
+    }
+    return result;
 }
 
 // Close result window
@@ -68,15 +164,15 @@ function clearGrid() {
     console.log('🧹 Grid cleared');
 }
 
-// Debug function to check if weights are loaded
+// Debug function
 function checkWeightsLoaded() {
     console.log('=== DEBUG: Checking Weights ===');
     console.log('window.modelWeights exists:', typeof window.modelWeights !== 'undefined');
-    console.log('numpy loaded:', typeof window.numpy !== 'undefined');
     console.log('modelInitialized:', modelInitialized);
     
     if (window.modelWeights) {
-        console.log('W1 sample:', window.modelWeights.W1?.slice(0, 2)?.map(row => row?.slice(0, 3)));
+        console.log('W1 shape:', window.modelWeights.W1.length, 'x', window.modelWeights.W1[0].length);
+        console.log('W1 sample:', window.modelWeights.W1[0].slice(0, 3));
     }
 }
 
@@ -85,11 +181,6 @@ function initializeModel() {
     try {
         console.log('🔄 Initializing model...');
         
-        const np = window.numpy;
-        if (!np) {
-            throw new Error('numpy not loaded');
-        }
-        
         // Check if weights are available
         if (!window.modelWeights) {
             throw new Error('Weights not found in window.modelWeights');
@@ -97,19 +188,19 @@ function initializeModel() {
         
         const weights = window.modelWeights;
         
-        // Convert to numpy arrays
-        W1 = np.array(weights.W1);
-        b1 = np.array(weights.b1);
-        W2 = np.array(weights.W2);
-        b2 = np.array(weights.b2);
-        W3 = np.array(weights.W3);
-        b3 = np.array(weights.b3);
+        // Assign weights (they're already in correct format)
+        W1 = weights.W1;
+        b1 = weights.b1;
+        W2 = weights.W2;
+        b2 = weights.b2;
+        W3 = weights.W3;
+        b3 = weights.b3;
         
         modelInitialized = true;
         console.log('✅ Model loaded successfully!');
-        console.log('W1 shape:', W1.shape);
-        console.log('W2 shape:', W2.shape);
-        console.log('W3 shape:', W3.shape);
+        console.log('W1 shape:', W1.length, 'x', W1[0].length);
+        console.log('W2 shape:', W2.length, 'x', W2[0].length);
+        console.log('W3 shape:', W3.length, 'x', W3[0].length);
         
     } catch (error) {
         console.error('❌ Model loading failed:', error);
@@ -157,7 +248,7 @@ function showPredictionResult(prediction, confidence, probabilities) {
                 ${probabilities.map((prob, digit) => `
                     <div style="flex: 1; display: flex; flex-direction: column; align-items: center; max-width: 30px;">
                         <div style="width: 100%; background-color: ${digit === prediction ? '#4CAF50' : '#ccc'}; 
-                                  height: ${prob * 100}%; border-radius: 3px 3px 0 0; transition: height 0.3s;">
+                                  height: ${prob * 100}%; border-radius: 3px 3px 0 0;">
                         </div>
                         <div style="font-size: 10px; margin-top: 5px; color: #666;">${digit}</div>
                     </div>
@@ -179,7 +270,7 @@ function predictDigit() {
     
     if (!modelInitialized) {
         alert('Model is not initialized. Please check console for errors.');
-        checkWeightsLoaded(); // Show debug info
+        checkWeightsLoaded();
         return;
     }
     
@@ -196,21 +287,24 @@ function predictDigit() {
     
     try {
         console.log('🧠 Starting prediction...');
-        const np = window.numpy;
         const X = preprocessGridData();
         
-        // Forward propagation
-        const Z1 = W1.dot(X).add(b1);
+        // Forward propagation through the neural network
+        console.log('➡️ Forward propagation...');
+        const Z1 = matAdd(matMultiply(W1, X), b1);
         const A1 = relu(Z1);
-        const Z2 = W2.dot(A1).add(b2);
+        
+        const Z2 = matAdd(matMultiply(W2, A1), b2);
         const A2 = relu(Z2);
-        const Z3 = W3.dot(A2).add(b3);
+        
+        const Z3 = matAdd(matMultiply(W3, A2), b3);
         const A3 = softmax(Z3);
         
         // Get results
-        const prediction = np.argmax(A3, 0).get(0);
-        const confidence = np.max(A3).get(0);
-        const probabilities = A3.flatten().tolist();
+        const { predictions, confidences } = argmax(A3);
+        const prediction = predictions[0]; // First (and only) prediction
+        const confidence = confidences[0];
+        const probabilities = A3.map(row => row[0]); // Flatten to 1D array
         
         console.log('📊 Prediction:', prediction, 'Confidence:', confidence);
         
@@ -238,19 +332,8 @@ window.addEventListener('load', function() {
     debugBtn.onclick = checkWeightsLoaded;
     document.querySelector('.buttons').appendChild(debugBtn);
     
-    // Check if numpy is loaded
-    function checkNumpy() {
-        if (window.numpy) {
-            console.log('✅ numpy loaded successfully');
-            initializeModel();
-        } else {
-            console.log('⏳ Waiting for numpy...');
-            setTimeout(checkNumpy, 100);
-        }
-    }
-    
-    // Start checking for numpy
-    setTimeout(checkNumpy, 1000);
+    // Initialize model immediately (no waiting for numpy)
+    initializeModel();
 });
 
 // Make functions available globally
@@ -258,3 +341,5 @@ window.predictDigit = predictDigit;
 window.clearGrid = clearGrid;
 window.closeResult = closeResult;
 window.checkWeightsLoaded = checkWeightsLoaded;
+
+console.log('🚀 Neural network ready without numpy!');
