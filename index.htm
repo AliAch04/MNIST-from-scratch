@@ -3,91 +3,233 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>28x28 Drawing Grid</title>
+  <title>Digit Recognizer - Draw & Predict</title>
   <style>
     body {
       display: flex;
+      flex-direction: column;
       justify-content: center;
       align-items: center;
       height: 100vh;
       background: #f2f2f2;
+      gap: 15px;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
     }
+    
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
+    .controls {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      font-family: sans-serif;
+    }
+    
     .grid {
       display: grid;
       grid-template-columns: repeat(28, 20px);
       grid-template-rows: repeat(28, 20px);
-      border: 2px solid black;
+      border: 2px solid #333;
+      background: white;
     }
+    
     .cell {
       width: 20px;
       height: 20px;
       background: rgb(255,255,255);
-      border: 1px solid #ddd;
+      border: 1px solid #eee;
       box-sizing: border-box;
       user-select: none;
+    }
+    
+    .buttons {
+      display: flex;
+      gap: 15px;
+      margin: 20px 0;
+    }
+    
+    button {
+      padding: 15px 30px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+      transition: all 0.3s;
+    }
+    
+    #predictBtn {
+      background: linear-gradient(45deg, #4CAF50, #45a049);
+      color: white;
+      box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+    }
+    
+    #predictBtn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(76, 175, 80, 0.4);
+    }
+    
+    #clearBtn {
+      background: linear-gradient(45deg, #f44336, #d32f2f);
+      color: white;
+      box-shadow: 0 4px 8px rgba(244, 67, 54, 0.3);
+    }
+    
+    #clearBtn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(244, 67, 54, 0.4);
+    }
+    
+    .instructions {
+      text-align: center;
+      color: #666;
+      max-width: 400px;
+      line-height: 1.5;
+    }
+    
+    .brush-control {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 10px 0;
+    }
+    
+    #brushValue {
+      font-weight: bold;
+      color: #333;
+      min-width: 20px;
+      text-align: center;
     }
   </style>
 </head>
 <body>
-  <div class="grid" id="grid"></div>
+  <div class="container">
+    <h1>🎨 Digit Recognizer</h1>
+    
+    <div class="instructions">
+      <p><strong>Draw a digit (0-9) and click Predict!</strong></p>
+      <p>• Left-click to draw • Right-click to erase</p>
+    </div>
+    
+    <div class="brush-control">
+      <label for="brushSize">Brush size:</label>
+      <input type="range" id="brushSize" min="1" max="5" value="1">
+      <span id="brushValue">1</span>
+    </div>
+    
+    <div class="grid" id="grid"></div>
+    
+    <div class="buttons">
+      <button id="predictBtn">Predict Digit</button>
+      <button id="clearBtn">Clear Grid</button>
+    </div>
+  </div>
 
   <script>
+    // Grid drawing functionality
     const grid = document.getElementById("grid");
+    const brushSizeSlider = document.getElementById("brushSize");
+    const brushValue = document.getElementById("brushValue");
+    const predictBtn = document.getElementById("predictBtn");
+    const clearBtn = document.getElementById("clearBtn");
+
     let isDrawing = false;
     let isErasing = false;
+    const step = 95; // increment per hover
+    const size = 28; // grid dimension
+    let brushSize = 1;
 
-    // Function to update color based on intensity
-    function updateCell(cell) {
-      let intensity = parseInt(cell.dataset.intensity || "0");
-      cell.style.background = `rgb(${255-intensity},${255-intensity},${255-intensity})`;
+    brushSizeSlider.addEventListener("input", () => {
+      brushSize = parseInt(brushSizeSlider.value);
+      brushValue.textContent = brushSize;
+    });
+
+    // Function to update cell color
+    function updateCell(cell, erase = false) {
+      if (!cell) return;
+      if (erase) {
+        cell.dataset.intensity = 0;
+      } else {
+        let intensity = Math.min(255, parseInt(cell.dataset.intensity) + step);
+        cell.dataset.intensity = intensity;
+      }
+      const value = 255 - parseInt(cell.dataset.intensity);
+      cell.style.background = `rgb(${value},${value},${value})`;
+    }
+
+    // Helper: get cell at row,col
+    function getCell(row, col) {
+      if (row < 0 || row >= size || col < 0 || col >= size) return null;
+      const index = row * size + col;
+      return grid.children[index];
+    }
+
+    // Apply brush around target cell
+    function applyBrush(targetCell, erase = false) {
+      const index = Array.from(grid.children).indexOf(targetCell);
+      const row = Math.floor(index / size);
+      const col = index % size;
+
+      for (let r = row - (brushSize - 1); r <= row + (brushSize - 1); r++) {
+        for (let c = col - (brushSize - 1); c <= col + (brushSize - 1); c++) {
+          const cell = getCell(r, c);
+          if (cell) updateCell(cell, erase);
+        }
+      }
     }
 
     // Create cells
-    for (let i = 0; i < 28 * 28; i++) {
+    for (let i = 0; i < size * size; i++) {
       const cell = document.createElement("div");
       cell.classList.add("cell");
       cell.dataset.intensity = "0"; // start white
 
-      // Left click (draw darker)
+      // Mouse down
       cell.addEventListener("mousedown", (e) => {
-        if (e.button === 0) { // left click
+        if (e.button === 0) { // left click = draw
           isDrawing = true;
-          let intensity = Math.min(255, parseInt(cell.dataset.intensity) + 110);
-          cell.dataset.intensity = intensity;
-          updateCell(cell);
+          applyBrush(cell, false);
         }
-        if (e.button === 2) { // right click (erase)
+        if (e.button === 2) { // right click = erase
           isErasing = true;
-          cell.dataset.intensity = 0;
-          updateCell(cell);
+          applyBrush(cell, true);
         }
         e.preventDefault();
       });
 
-      // Hover while mouse is down
-      cell.addEventListener("mouseover", (e) => {
-        if (isDrawing) {
-          let intensity = Math.min(255, parseInt(cell.dataset.intensity) + 150);
-          cell.dataset.intensity = intensity;
-          updateCell(cell);
-        }
-        if (isErasing) {
-          cell.dataset.intensity = 0;
-          updateCell(cell);
-        }
+      // Hover while mouse down
+      cell.addEventListener("mouseover", () => {
+        if (isDrawing) applyBrush(cell, false);
+        if (isErasing) applyBrush(cell, true);
       });
 
       grid.appendChild(cell);
     }
 
-    // Stop when mouse is released
+    // Stop on mouse up
     document.addEventListener("mouseup", () => {
       isDrawing = false;
       isErasing = false;
     });
 
-    // Disable context menu (right click erase works instead)
+    // Disable right-click menu
     document.addEventListener("contextmenu", (e) => e.preventDefault());
   </script>
+  
+  <script src="https://cdn.jsdelivr.net/npm/numpy@0.0.1/browser.js"></script>
+  <script src="model_weights.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>

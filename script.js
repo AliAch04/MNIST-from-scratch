@@ -1,125 +1,28 @@
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
-const clearBtn = document.getElementById('clearBtn');
-const predictBtn = document.getElementById('predictBtn');
-const resultDiv = document.getElementById('result');
-const predictionDiv = document.getElementById('prediction');
-const confidenceDiv = document.getElementById('confidence');
-const probabilitiesDiv = document.getElementById('probabilities');
+// script.js - Neural Network Prediction
 
-let isDrawing = false;
-let lastX = 0;
-let lastY = 0;
+// Global variables for model weights
+let W1, b1, W2, b2, W3, b3;
+let modelInitialized = false;
 
-ctx.fillStyle = 'black';
-ctx.fillRect(0, 0, canvas.width, canvas.height);
-ctx.strokeStyle = 'white';
-ctx.lineWidth = 20;
-ctx.lineCap = 'round';
-
-// Drawing functions
-canvas.addEventListener('mousedown', startDrawing);
-canvas.addEventListener('mousemove', draw);
-canvas.addEventListener('mouseup', stopDrawing);
-canvas.addEventListener('mouseout', stopDrawing);
-
-clearBtn.addEventListener('click', clearCanvas);
-predictBtn.addEventListener('click', predictDigit);
-
-function startDrawing(e) {
-    isDrawing = true;
-    [lastX, lastY] = [e.offsetX, e.offsetY];
-}
-
-function draw(e) {
-    if (!isDrawing) return;
-    
-    ctx.beginPath();
-    ctx.moveTo(lastX, lastY);
-    ctx.lineTo(e.offsetX, e.offsetY);
-    ctx.stroke();
-    
-    [lastX, lastY] = [e.offsetX, e.offsetY];
-}
-
-function stopDrawing() {
-    isDrawing = false;
-}
-
-function clearCanvas() {
-    ctx.fillStyle = 'black';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    resultDiv.style.display = 'none';
-}
-
-// Preprocess image for the neural network
-function preprocessImage() {
-    // Create a temporary canvas to resize to 28x28
-    const tempCanvas = document.createElement('canvas');
-    const tempCtx = tempCanvas.getContext('2d');
-    tempCanvas.width = 28;
-    tempCanvas.height = 28;
-    
-    // Draw and resize
-    tempCtx.drawImage(canvas, 0, 0, 28, 28);
-    
-    // Get image data
-    const imageData = tempCtx.getImageData(0, 0, 28, 28);
-    const data = imageData.data;
-    
-    // Convert to grayscale and normalize
-    const processedData = [];
-    for (let i = 0; i < data.length; i += 4) {
-        // Extract RGB and convert to grayscale (invert since canvas is black background)
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        const grayscale = 255 - (0.299 * r + 0.587 * g + 0.114 * b); // Invert for black background
-    
-        processedData.push(grayscale / 255.0);
-    }
-    
-    return processedData;
-}
-
-// Predict digit using your neural network
-async function predictDigit() {
+// Initialize the model
+function initializeModel() {
     try {
-        // Preprocess the drawn image
-        const imageData = preprocessImage();
-        
-        // Convert to numpy array (using browser numpy)
         const np = window.numpy;
-        const inputArray = np.array(imageData).reshape(28, 28);
         
-        // Flatten and add batch dimension
-        const flattened = inputArray.flatten();
-        const X = flattened.reshape(784, 1);
+        // Convert to numpy arrays
+        W1 = np.array(W1);
+        b1 = np.array(b1);
+        W2 = np.array(W2);
+        b2 = np.array(b2);
+        W3 = np.array(W3);
+        b3 = np.array(b3);
         
-        // Normalize (if not already done in preprocessing)
-        const X_normalized = X.divide(255.0);
-        
-        // Run through your neural network functions
-        const Z1 = W1.dot(X_normalized).add(b1);
-        const A1 = relu(Z1);
-        
-        const Z2 = W2.dot(A1).add(b2);
-        const A2 = relu(Z2);
-        
-        const Z3 = W3.dot(A2).add(b3);
-        const A3 = softmax(Z3);
-        
-        // Get prediction
-        const prediction = np.argmax(A3, 0).get(0);
-        const confidence = np.max(A3).get(0);
-        const probabilities = A3.flatten().tolist();
-        
-        // Display results
-        displayResults(prediction, confidence, probabilities);
+        modelInitialized = true;
+        console.log('✅ Model loaded successfully!');
         
     } catch (error) {
-        console.error('Prediction error:', error);
-        alert('Error making prediction. Please check the console.');
+        console.error('❌ Model loading failed:', error);
+        alert('Error: Could not load model weights. Check console for details.');
     }
 }
 
@@ -134,67 +37,164 @@ function softmax(Z) {
     return exp_Z.divide(np.sum(exp_Z, 0, true));
 }
 
-// Display prediction results
-function displayResults(prediction, confidence, probabilities) {
-    predictionDiv.textContent = prediction;
-    confidenceDiv.textContent = `Confidence: ${(confidence * 100).toFixed(1)}%`;
+// Get pixel data from grid
+function getGridData() {
+    const grid = document.getElementById("grid");
+    const cells = grid.children;
+    const pixelData = [];
     
-    // Create probability bars
-    probabilitiesDiv.innerHTML = '';
-    probabilities.forEach((prob, digit) => {
-        const barContainer = document.createElement('div');
-        barContainer.style.display = 'flex';
-        barContainer.style.flexDirection = 'column';
-        barContainer.style.alignItems = 'center';
-        
-        const bar = document.createElement('div');
-        bar.className = 'prob-bar';
-        bar.style.height = `${prob * 100}px`;
-        bar.style.backgroundColor = digit === prediction ? '#2e7d32' : '#4CAF50';
-        bar.style.opacity = digit === prediction ? '1' : '0.6';
-        
-        const label = document.createElement('div');
-        label.className = 'prob-label';
-        label.textContent = digit;
-        
-        barContainer.appendChild(bar);
-        barContainer.appendChild(label);
-        probabilitiesDiv.appendChild(barContainer);
-    });
+    for (let i = 0; i < cells.length; i++) {
+        const intensity = parseInt(cells[i].dataset.intensity) || 0;
+        const normalized = intensity / 255.0;
+        pixelData.push(normalized);
+    }
     
-    resultDiv.style.display = 'block';
+    return pixelData;
 }
 
-// Load your trained model weights (you'll need to replace these with your actual weights)
-// In a real application, you'd load these from a file or server
-const W1 = /* Your W1 numpy array */;
-const b1 = /* Your b1 numpy array */;
-const W2 = /* Your W2 numpy array */;
-const W3 = /* Your W3 numpy array */;
-const b2 = /* Your b2 numpy array */;
-const b3 = /* Your b3 numpy array */;
-
-// For testing purposes, you can use random weights initially
-// Replace these with your actual trained weights
-function initializeDemoWeights() {
+// Preprocess grid data
+function preprocessGridData() {
+    const pixelData = getGridData();
     const np = window.numpy;
-    
-    // Demo weights - replace with your actual trained weights
-    W1 = np.random.rand(128, 784).multiply(0.01);
-    b1 = np.zeros([128, 1]);
-    
-    W2 = np.random.rand(64, 128).multiply(0.01);
-    b2 = np.zeros([64, 1]);
-    
-    W3 = np.random.rand(10, 64).multiply(0.01);
-    b3 = np.zeros([10, 1]);
-    
-    console.log('Demo weights initialized. Replace with your actual trained weights.');
+    const imageArray = np.array(pixelData).reshape(28, 28);
+    const flattened = imageArray.flatten();
+    return flattened.reshape(784, 1);
 }
 
-// Initialize when numpy is loaded
-if (window.numpy) {
-    initializeDemoWeights();
-} else {
-    window.addEventListener('load', initializeDemoWeights);
+// Predict digit function
+function predictDigit() {
+    if (!modelInitialized) {
+        alert('Model is still loading. Please wait...');
+        return;
+    }
+    
+    try {
+        const np = window.numpy;
+        const X = preprocessGridData();
+        
+        // Forward propagation
+        const Z1 = W1.dot(X).add(b1);
+        const A1 = relu(Z1);
+        
+        const Z2 = W2.dot(A1).add(b2);
+        const A2 = relu(Z2);
+        
+        const Z3 = W3.dot(A2).add(b3);
+        const A3 = softmax(Z3);
+        
+        // Get results
+        const prediction = np.argmax(A3, 0).get(0);
+        const confidence = np.max(A3).get(0);
+        const probabilities = A3.flatten().tolist();
+        
+        // Show results
+        showPredictionResult(prediction, confidence, probabilities);
+        
+    } catch (error) {
+        console.error('Prediction error:', error);
+        alert('Prediction failed: ' + error.message);
+    }
 }
+
+// Show prediction results
+function showPredictionResult(prediction, confidence, probabilities) {
+    // Remove existing results if any
+    const existingResult = document.getElementById('predictionResult');
+    if (existingResult) {
+        existingResult.remove();
+    }
+    
+    // Create results display
+    const resultDiv = document.createElement('div');
+    resultDiv.id = 'predictionResult';
+    resultDiv.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        padding: 30px;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        z-index: 1000;
+        text-align: center;
+        min-width: 300px;
+        border: 3px solid #4CAF50;
+    `;
+    
+    resultDiv.innerHTML = `
+        <h2 style="color: #333; margin: 0 0 20px 0;">Prediction Result</h2>
+        <div style="font-size: 72px; font-weight: bold; color: #4CAF50; margin: 20px 0;">
+            ${prediction}
+        </div>
+        <div style="color: #666; font-size: 18px; margin: 10px 0;">
+            Confidence: ${(confidence * 100).toFixed(1)}%
+        </div>
+        <div style="margin: 20px 0;">
+            <div style="font-size: 14px; color: #666; margin-bottom: 10px;">Probability Distribution</div>
+            <div style="display: flex; gap: 3px; height: 40px; align-items: flex-end; justify-content: center;">
+                ${probabilities.map((prob, digit) => `
+                    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; max-width: 30px;">
+                        <div style="width: 100%; background-color: ${digit === prediction ? '#4CAF50' : '#ccc'}; 
+                                  height: ${prob * 100}%; border-radius: 3px 3px 0 0; transition: height 0.3s;">
+                        </div>
+                        <div style="font-size: 10px; margin-top: 5px; color: #666;">${digit}</div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+        <button onclick="closeResult()" style="padding: 12px 24px; background: #f44336; color: white; 
+                border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin-top: 15px;">
+            Close
+        </button>
+    `;
+    
+    document.body.appendChild(resultDiv);
+}
+
+// Close result window
+function closeResult() {
+    const resultDiv = document.getElementById('predictionResult');
+    if (resultDiv) {
+        resultDiv.remove();
+    }
+}
+
+// Clear grid function
+function clearGrid() {
+    const grid = document.getElementById("grid");
+    const cells = grid.children;
+    
+    for (let i = 0; i < cells.length; i++) {
+        cells[i].dataset.intensity = "0";
+        cells[i].style.background = "rgb(255, 255, 255)";
+    }
+    
+    closeResult();
+}
+
+// Initialize when page loads
+window.addEventListener('load', function() {
+    // Add event listeners to buttons
+    document.getElementById('predictBtn').addEventListener('click', predictDigit);
+    document.getElementById('clearBtn').addEventListener('click', clearGrid);
+    
+    // Initialize model when numpy is ready
+    if (window.numpy) {
+        initializeModel();
+    } else {
+        const checkNumpy = setInterval(() => {
+            if (window.numpy) {
+                clearInterval(checkNumpy);
+                initializeModel();
+            }
+        }, 100);
+    }
+});
+
+// Make functions available globally
+window.predictDigit = predictDigit;
+window.clearGrid = clearGrid;
+window.closeResult = closeResult;
+
+console.log('✅ Script loaded successfully!');
