@@ -14,19 +14,17 @@
     }
     .grid {
       display: grid;
-      grid-template-columns: repeat(28, 20px); /* each square = 20px */
+      grid-template-columns: repeat(28, 20px);
       grid-template-rows: repeat(28, 20px);
       border: 2px solid black;
     }
     .cell {
       width: 20px;
       height: 20px;
-      background: white;
-      border: 1px solid #ddd; /* grid lines */
+      background: rgb(255,255,255);
+      border: 1px solid #ddd;
       box-sizing: border-box;
-    }
-    .cell.active {
-      background: black;
+      user-select: none;
     }
   </style>
 </head>
@@ -36,32 +34,60 @@
   <script>
     const grid = document.getElementById("grid");
     let isDrawing = false;
+    let isErasing = false;
 
-    // Create 28x28 = 784 cells
+    // Function to update color based on intensity
+    function updateCell(cell) {
+      let intensity = parseInt(cell.dataset.intensity || "0");
+      cell.style.background = `rgb(${255-intensity},${255-intensity},${255-intensity})`;
+    }
+
+    // Create cells
     for (let i = 0; i < 28 * 28; i++) {
       const cell = document.createElement("div");
       cell.classList.add("cell");
+      cell.dataset.intensity = "0"; // start white
 
-      // Click to toggle
-      cell.addEventListener("mousedown", () => {
-        isDrawing = true;
-        cell.classList.add("active");
+      // Left click (draw darker)
+      cell.addEventListener("mousedown", (e) => {
+        if (e.button === 0) { // left click
+          isDrawing = true;
+          let intensity = Math.min(255, parseInt(cell.dataset.intensity) + 110);
+          cell.dataset.intensity = intensity;
+          updateCell(cell);
+        }
+        if (e.button === 2) { // right click (erase)
+          isErasing = true;
+          cell.dataset.intensity = 0;
+          updateCell(cell);
+        }
+        e.preventDefault();
       });
 
-      // Hover while drawing
-      cell.addEventListener("mouseover", () => {
+      // Hover while mouse is down
+      cell.addEventListener("mouseover", (e) => {
         if (isDrawing) {
-          cell.classList.add("active");
+          let intensity = Math.min(255, parseInt(cell.dataset.intensity) + 150);
+          cell.dataset.intensity = intensity;
+          updateCell(cell);
+        }
+        if (isErasing) {
+          cell.dataset.intensity = 0;
+          updateCell(cell);
         }
       });
 
       grid.appendChild(cell);
     }
 
-    // Stop drawing when mouse is released anywhere
+    // Stop when mouse is released
     document.addEventListener("mouseup", () => {
       isDrawing = false;
+      isErasing = false;
     });
+
+    // Disable context menu (right click erase works instead)
+    document.addEventListener("contextmenu", (e) => e.preventDefault());
   </script>
 </body>
 </html>
