@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Digit Recognizer - Draw & Predict</title>
+  <!-- Load numpy -->
+  <script src="https://cdn.jsdelivr.net/npm/@aureooms/js-numpy@0.0.6/dist/numpy.min.js"></script>
   <style>
     body {
       display: flex;
@@ -231,8 +233,7 @@
     document.addEventListener("contextmenu", (e) => e.preventDefault());
   </script>
   
-  <script src="https://cdn.jsdelivr.net/npm/numpy@0.0.1/browser.js"></script>
   <script src="model_weights.js" defer></script>
-  <script src="script.js"></script>
+  <script src="script.js" defer></script>
 </body>
 </html>
